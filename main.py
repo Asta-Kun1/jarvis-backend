@@ -1,37 +1,54 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 import os
+import json
 from dotenv import load_dotenv
-import requests
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 
-# 1. Load the .env file (this only works locally on your laptop)
 load_dotenv()
 
-# 2. Initialize the app
 app = FastAPI()
 
-# 3. Securely grab the API keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-# (We will add the Expo push token later)
-
-# --- ROUTES ---
+GMAIL_TOKEN_STR = os.getenv("GMAIL_TOKEN")
 
 @app.get("/")
 def read_root():
-    # This is the health check route Render and UptimeRobot will ping
-    key_status = "loaded" if GROQ_API_KEY else "missing"
     return {
         "status": "Jarvis is awake and listening.",
-        "api_key_status": key_status
+        "groq_key": "loaded" if GROQ_API_KEY else "missing",
+        "gmail_token": "loaded" if GMAIL_TOKEN_STR else "missing"
     }
 
-# We will fill this in later when we connect Gmail
-@app.post("/webhook/gmail")
-async def receive_gmail(request: Request):
-    data = await request.json()
-    print("Received Gmail data:", data)
-    return {"status": "success"}
+@app.get("/read-email")
+def read_email():
+    if not GMAIL_TOKEN_STR:
+        return {"error": "Gmail token not found in environment variables."}
 
-# We will use this later to trigger the phone call/app
-@app.get("/trigger-call")
-def trigger_call():
-    return {"message": "This will eventually trigger the phone app."}
+    try:
+        token_info = json.loads(GMAIL_TOKEN_STR)
+        creds = Credentials.from_authorized_user_info(token_info, ['https://www.googleapis.com/auth/gmail.readonly'])
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Get the most recent unread email
+        results = service.users().messages().list(userId='me', q='is:unread', maxResults=1).execute()
+        messages = results.get('messages', [])
+
+        if not messages:
+            return {"message": "No new unread emails."}
+
+        msg = service.users().messages().get(userId='me', id=messages[0]['id'], format='metadata', metadataHeaders=['Subject', 'From']).execute()
+        
+        headers = msg['payload']['headers']
+        subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "No Subject")
+        sender = next((h['value'] for h in headers if h['name'] == 'From'), "Unknown Sender")
+
+        return {
+            "status": "success",
+            "sender": sender,
+            "subject": subject,
+            "snippet": msg.get('snippet', '')
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
