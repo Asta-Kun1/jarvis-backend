@@ -42,7 +42,7 @@ def trigger_jarvis():
         sender = next((h['value'] for h in headers if h['name'] == 'From'), "Unknown Sender")
         snippet = msg.get('snippet', '')
 
-        # 3. Send to Groq AI to summarize like Jarvis
+        # 3. Send to Groq AI to summarize
         groq_url = "https://api.groq.com/openai/v1/chat/completions"
         groq_headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -56,7 +56,13 @@ def trigger_jarvis():
             ]
         }
         
-        ai_response = requests.post(groq_url, headers=groq_headers, json=groq_data).json()
+        response = requests.post(groq_url, headers=groq_headers, json=groq_data)
+        
+        # Check if Groq rejected the request
+        if response.status_code != 200:
+            return {"groq_error": response.text}
+            
+        ai_response = response.json()
         jarvis_summary = ai_response['choices'][0]['message']['content']
 
         # 4. Send Push Notification to Phone
