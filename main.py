@@ -49,7 +49,7 @@ def trigger_jarvis():
             "Content-Type": "application/json"
         }
         groq_data = {
-            "model": "llama3-8b-8192",
+            "model": "llama-3.1-8b-instant",
             "messages": [
                 {"role": "system", "content": "You are Jarvis, a helpful AI assistant. Summarize the email in one short, spoken sentence starting with 'Sir, you have an email from...'"},
                 {"role": "user", "content": f"From: {sender}\nSubject: {subject}\nSnippet: {snippet}"}
