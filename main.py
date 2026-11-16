@@ -79,11 +79,12 @@ def trigger_jarvis():
             "priority": "high"
         }
         
-        requests.post(expo_url, headers=expo_headers, json=expo_data)
+        expo_response = requests.post(expo_url, headers=expo_headers, json=expo_data)
 
         return {
             "status": "success",
-            "summary_sent_to_phone": jarvis_summary
+            "summary_sent_to_phone": jarvis_summary,
+            "expo_response": expo_response.json() # <--- THIS WILL SHOW US THE ERROR
         }
 
     except Exception as e:
